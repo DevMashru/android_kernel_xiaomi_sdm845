@@ -240,6 +240,8 @@ struct dsi_display {
 	struct work_struct fifo_underflow_work;
 	struct work_struct fifo_overflow_work;
 	struct work_struct lp_rx_timeout_work;
+
+	atomic_t fod_ui;
 };
 
 /**
@@ -589,8 +591,6 @@ void dsi_display_enable_event(struct dsi_display *display,
 
 int dsi_display_set_backlight(void *display, u32 bl_lvl);
 
-int dsi_panel_set_doze_backlight(struct dsi_display *display, u32 bl_lvl);
-
 /**
  * dsi_display_check_status() - check if panel is dead or alive
  * @display:            Handle to display.
@@ -670,5 +670,9 @@ int dsi_display_cont_splash_config(void *display);
  */
 int dsi_display_get_panel_vfp(void *display,
 	int h_active, int v_active);
+
+struct dsi_display *get_main_display(void);
+
+void dsi_display_set_fod_ui(struct dsi_display *display, bool status);
 
 #endif /* _DSI_DISPLAY_H_ */

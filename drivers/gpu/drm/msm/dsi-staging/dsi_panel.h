@@ -38,8 +38,6 @@
 #define DSI_MODE_MAX 5
 #define BUF_LEN_MAX    256
 
-#define PANEL_BL_INFO_NUM    4
-
 #define HIST_BL_OFFSET_LIMIT 48
 
 enum dsi_panel_rotation {
@@ -55,6 +53,11 @@ enum dsi_backlight_type {
 	DSI_BACKLIGHT_DCS,
 	DSI_BACKLIGHT_UNKNOWN,
 	DSI_BACKLIGHT_MAX,
+};
+
+enum dsi_doze_mode_type {
+	DSI_DOZE_LPM = 0,
+	DSI_DOZE_HBM,
 };
 
 enum bl_update_flag {
@@ -114,10 +117,11 @@ struct dsi_backlight_config {
 	u32 bl_level;
 	u32 bl_scale;
 	u32 bl_scale_ad;
+	u32 bl_doze_lpm;
+	u32 bl_doze_hbm;
 
 	int en_gpio;
 	bool bl_remap_flag;
-	bool doze_brightness_varible_flag;
 	bool dcs_type_ss;
 	/* PWM params */
 	bool pwm_pmi_control;
@@ -195,6 +199,12 @@ struct dsi_panel_exd_config {
 	int selab;
 };
 
+#define BRIGHTNESS_ALPHA_PAIR_LEN 2
+struct brightness_alpha_pair {
+	u32 brightness;
+	u32 alpha;
+};
+
 struct dsi_panel {
 	const char *name;
 	enum dsi_panel_type type;
@@ -235,9 +245,7 @@ struct dsi_panel {
 	bool te_using_watchdog_timer;
 
 	bool dispparam_enabled;
-	bool on_cmds_tuning;
 	bool panel_reset_skip;
-	u32 skip_dimmingon;
 
 	char dsc_pps_cmd[DSI_CMD_PPS_SIZE];
 	enum dsi_dms_mode dms_mode;
@@ -246,32 +254,21 @@ struct dsi_panel {
 
 	struct dsi_panel_exd_config exd_config;
 
-	u32 panel_on_dimming_delay;
-	u32 last_bl_lvl;
-	struct delayed_work cmds_work;
-
 	bool dsi_panel_off_mode;
 	/* check disable cabc when panel off */
 	bool onoff_mode_enabled;
-	bool disable_cabc;
 	bool off_keep_reset;
-	struct dsi_read_config brightness_cmds;
-	struct dsi_read_config xy_coordinate_cmds;
-	struct dsi_read_config max_luminance_cmds;
-	struct dsi_read_config max_luminance_valid_cmds;
 	struct dsi_read_config panel_ddic_id_cmds;
 	u8 panel_read_data[BUF_LEN_MAX];
-	u32 panel_bl_info[PANEL_BL_INFO_NUM];
 
-	u32 hist_bl_offset;
-
-	s32 backlight_delta;
 	bool fod_hbm_enabled;
-	bool in_aod;
-	u32 doze_backlight_threshold;
-	u32 dc_threshold;
 	ktime_t fod_hbm_off_time;
-	bool dc_enable;
+
+	bool doze_enabled;
+	enum dsi_doze_mode_type doze_mode;
+
+	struct brightness_alpha_pair *fod_dim_lut;
+	u32 fod_dim_lut_count;
 };
 
 static inline bool dsi_panel_ulps_feature_enabled(struct dsi_panel *panel)
@@ -331,11 +328,19 @@ int dsi_panel_get_dfps_caps(struct dsi_panel *panel,
 
 int dsi_panel_pre_prepare(struct dsi_panel *panel);
 
+int dsi_panel_set_doze_status(struct dsi_panel *panel, bool status);
+
+int dsi_panel_set_doze_mode(struct dsi_panel *panel, enum dsi_doze_mode_type mode);
+
 int dsi_panel_set_lp1(struct dsi_panel *panel);
 
 int dsi_panel_set_lp2(struct dsi_panel *panel);
 
 int dsi_panel_set_nolp(struct dsi_panel *panel);
+
+int dsi_panel_set_fod_hbm(struct dsi_panel *panel, bool status);
+
+u32 dsi_panel_get_fod_dim_alpha(struct dsi_panel *panel);
 
 int dsi_panel_prepare(struct dsi_panel *panel);
 
@@ -352,8 +357,6 @@ int dsi_panel_unprepare(struct dsi_panel *panel);
 int dsi_panel_post_unprepare(struct dsi_panel *panel);
 
 int dsi_panel_set_backlight(struct dsi_panel *panel, u32 bl_lvl);
-
-int dsi_panel_enable_doze_backlight(struct dsi_panel *panel, u32 bl_lvl);
 
 int dsi_panel_update_pps(struct dsi_panel *panel);
 
